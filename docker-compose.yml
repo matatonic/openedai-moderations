@@ -3,6 +3,7 @@ services:
   moderations:
     build:
       dockerfile: Dockerfile
+    image: ghcr.io/matatonic/openedai-moderations
     env_file:
       - moderations.env
     environment:
