@@ -1,5 +1,6 @@
 embedding_data/
 .env
+test_moderations.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
