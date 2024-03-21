@@ -1,0 +1,21 @@
+version: "3.3"
+services:
+  moderations:
+    build:
+      dockerfile: Dockerfile
+    env_file:
+      - moderations.env
+    environment:
+      # Use the included embeddings service (this should have a /v1 on the end)
+      - OPENAI_BASE_URL=http://text-embeddings-inference:80
+    stdin_open: true
+    tty: true
+    ports:
+      - 5002:5002
+    command: python moderations.py
+
+  # Comment this to use another embeddings API
+  text-embeddings-inference:
+    extends:
+      file: docker-compose.tei.yml
+      service: text-embeddings-inference
