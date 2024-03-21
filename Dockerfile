@@ -1,9 +1,10 @@
-FROM python:3-slim
+FROM python:3-alpine
+LABEL version="0.1.0"
 
 RUN mkdir /app
-COPY moderations.py requirements.txt /app/
-#RUN git clone https://github.com/matatonic/openedai-moderations /app --single-branch
 WORKDIR /app
-RUN pip install -r requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY moderations.py .
 
 CMD python moderations.py
