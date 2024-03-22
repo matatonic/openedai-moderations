@@ -6,15 +6,14 @@ import sys
 import os
 import time
 import requests
-from fastapi import FastAPI
-from fastapi.responses import PlainTextResponse
-from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import numpy as np
 from typing import Union
 from pydantic import BaseModel
 
-app = FastAPI()
+import openedai
+
+app = openedai.OpenAIStub()
 
 categories = [ "hate", "hate/threatening", "harassment", "harassment/threatening",
 			"self-harm", "self-harm/intent", "self-harm/instructions",
@@ -115,25 +114,6 @@ Sample Response:
 
 	return results
 
-# Health checks
-@app.route('/health', methods=['GET'])
-async def health(args):
-	return {'status': 'UP'} # TODO: test embeddings endpoint
-
-@app.get("/", response_class=PlainTextResponse)
-@app.head("/", response_class=PlainTextResponse)
-@app.options("/", response_class=PlainTextResponse)
-async def root():
-	return PlainTextResponse(content="")
-
-app.add_middleware(
-	CORSMiddleware,
-	allow_origins=["*"],
-	allow_credentials=True,
-	allow_methods=["*"],
-	allow_headers=["*"]
-)
-
 # Main
 if __name__ == "__main__":
 	# load embeddings, wait until service is ready to start
@@ -150,4 +130,7 @@ if __name__ == "__main__":
 	host=os.environ.get('HOST', '127.0.0.1')
 	port=int(os.environ.get('PORT', 5000))
 	print(f'Starting moderations API on {host}:{port}', file=sys.stderr)
+
+	app.register_model('text-moderations-005', 'text-moderations-openedai')
+
 	uvicorn.run(app, host=host, port=port)
