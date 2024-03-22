@@ -1,9 +1,8 @@
-version: '3.3'
 services:
   text-embeddings-inference:
     # See: https://github.com/huggingface/text-embeddings-inference/pkgs/container/text-embeddings-inference
-    image: ghcr.io/huggingface/text-embeddings-inference:1.1
-    #image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.1
+    image: ghcr.io/huggingface/text-embeddings-inference:1.2
+    #image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.2
     env_file:
       - tei.env
     container_name: text-embeddings-inference

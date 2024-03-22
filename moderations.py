@@ -36,19 +36,19 @@ def cosine_similarity(a, b):
 def get_embeddings(input, model='text-moderation-latest'):
 	#emb = client.embeddings.create(input=input, model="text-moderation-latest")
 	request = { 'input': input, 'model': model }
-	response = requests.post(f"{os.environ['OPENAI_BASE_URL']}/embeddings", json=request)
+	response = requests.post(f"{os.environ['OPENAI_BASE_URL']}/embeddings", json=request, timeout=5)
 	# TODO: support base64
 	if response.status_code == 200:
 		if isinstance(input, str):
 			return response.json()['data'][0]['embedding']
 		else:
 			return [ x['embedding'] for x in response.json()['data'] ]
-		
+
 	raise Exception(response)
 
 class ModerationsRequest(BaseModel):
-    model: str = "text-moderation-latest" # or "text-moderation-stable"
-    input: Union[str, list[str]]
+	model: str = "text-moderation-latest" # or "text-moderation-stable"
+	input: Union[str, list[str]]
 
 @app.post("/v1/moderations")
 async def moderations(request: ModerationsRequest):
@@ -124,28 +124,28 @@ async def health(args):
 @app.head("/", response_class=PlainTextResponse)
 @app.options("/", response_class=PlainTextResponse)
 async def root():
-    return PlainTextResponse(content="")
+	return PlainTextResponse(content="")
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
+	CORSMiddleware,
+	allow_origins=["*"],
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"]
 )
 
 # Main
 if __name__ == "__main__":
 	# load embeddings, wait until service is ready to start
-	wait = 3.0
+	WAIT = 2
 	while True:
 		try:
-			category_embeddings = dict(zip(categories, get_embeddings(categories)))		
+			category_embeddings = dict(zip(categories, get_embeddings(categories)))
 			break
 		except:
-			print(f'Embeddings service not ready, retrying in {wait} sec...', file=sys.stderr)
-			time.sleep(wait)
-			
+			print(f'Embeddings service not ready, retrying in {WAIT} sec...', file=sys.stderr)
+			time.sleep(WAIT)
+
 	# start API
 	host=os.environ.get('HOST', '127.0.0.1')
 	port=int(os.environ.get('PORT', 5000))
