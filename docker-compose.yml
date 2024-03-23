@@ -1,5 +1,5 @@
 services:
-  openedai-moderations:
+  server:
     build:
       dockerfile: Dockerfile
     image: ghcr.io/matatonic/openedai-moderations

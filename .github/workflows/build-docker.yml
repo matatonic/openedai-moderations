@@ -43,7 +43,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
 
       # Build and push the Docker image to GHCR for the main branch or specific tags
       - name: Build and Push Docker Image
