@@ -1,5 +1,6 @@
 fastapi
-requests
+uvicorn
 python-dotenv
 numpy
-uvicorn
+torch
+transformers

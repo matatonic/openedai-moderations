@@ -3,47 +3,17 @@ import dotenv
 dotenv.load_dotenv(override=True)
 
 import sys
-import os
 import time
-import requests
+import argparse
 import uvicorn
-import numpy as np
 from typing import Union
 from pydantic import BaseModel
 
+import torch
 import openedai
 
 app = openedai.OpenAIStub()
-
-categories = [ "hate", "hate/threatening", "harassment", "harassment/threatening",
-			"self-harm", "self-harm/intent", "self-harm/instructions",
- 			"sexual", "sexual/minors", "violence", "violence/graphic" ]
-category_embeddings = {}
-flag_threshold = float(os.environ.get('FLAG_THRESHOLD', 0.5))
-scale_factor = float(os.environ.get('SCALE_FACTOR', 1.3))
-# scale_factor is used to scale the dot product of embeddings. It is set to 1.3 by default.
-# 2.0 for all-mpnet-base-v2
-# 1.3 for nomic-ai/nomic-embed-text-v1
-
-
-def mod_score(a: np.ndarray, b: np.ndarray) -> float:
-	return scale_factor * np.dot(a, b)
-
-def cosine_similarity(a, b):
-	return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-def get_embeddings(input, model='text-moderation-latest'):
-	#emb = client.embeddings.create(input=input, model="text-moderation-latest")
-	request = { 'input': input, 'model': model }
-	response = requests.post(f"{os.environ['OPENAI_BASE_URL']}/embeddings", json=request, timeout=5)
-	# TODO: support base64
-	if response.status_code == 200:
-		if isinstance(input, str):
-			return response.json()['data'][0]['embedding']
-		else:
-			return [ x['embedding'] for x in response.json()['data'] ]
-
-	raise Exception(response)
+moderation = None
 
 class ModerationsRequest(BaseModel):
 	model: str = "text-moderation-latest" # or "text-moderation-stable"
@@ -101,10 +71,26 @@ Sample Response:
 	if isinstance(request.input, str):
 		request.input = [request.input]
 
-	for ine in get_embeddings(request.input):
-		category_scores = dict([(C, mod_score(category_embeddings[C], ine)) for C in categories])
-		category_flags = dict([(C, bool(category_scores[C] > flag_threshold)) for C in categories])
-		flagged = any(category_flags.values())
+	# minor name adjustments
+	mod_cat_map =  {
+		"harassment": "harassment",
+		"harassment-threatening": "harassment/threatening",
+		"hate": "hate",
+		"hate-threatening": "hate/threatening",
+		"self-harm": "self-harm",
+		"self-harm-instructions": "self-harm/instructions",
+		"self-harm-intent": "self-harm/intent",
+		"sexual": "sexual",
+		"sexual-minors": "sexual/minors",
+		"violence": "violence",
+		"violence-graphic": "violence/graphic",
+	}
+
+	for embeddings_for_prediction in mod.getEmbeddings(request.input).tolist():
+		prediction = mod.predict(moderation, embeddings_for_prediction)
+		category_scores = dict([ (mod_cat_map[C], score) for C, score in prediction['category_scores'].items() ])
+		category_flags = dict([ (mod_cat_map[C], flagged) for C, flagged in prediction['detect'].items() ])
+		flagged = prediction['detected']
 
 		results['results'].extend([{
 			'flagged': flagged,
@@ -114,23 +100,29 @@ Sample Response:
 
 	return results
 
+def parse_args(argv):
+	parser = argparse.ArgumentParser(description='Moderation API')
+	parser.add_argument('--host', type=str, default='0.0.0.0')
+	parser.add_argument('--port', type=int, default=5002)
+	parser.add_argument('--test-load', action='store_true')
+	return parser.parse_args(argv)
+
 # Main
 if __name__ == "__main__":
-	# load embeddings, wait until service is ready to start
-	WAIT = 2
-	while True:
-		try:
-			category_embeddings = dict(zip(categories, get_embeddings(categories)))
-			break
-		except:
-			print(f'Embeddings service not ready, retrying in {WAIT} sec...', file=sys.stderr)
-			time.sleep(WAIT)
 
+	args = parse_args(sys.argv[1:])
+
+	device = "cuda" if torch.cuda.is_available() else "cpu"
 	# start API
-	host=os.environ.get('HOST', '127.0.0.1')
-	port=int(os.environ.get('PORT', 5000))
-	print(f'Starting moderations API on {host}:{port}', file=sys.stderr)
+	print(f'Starting moderations[{device}] API on {args.host}:{args.port}', file=sys.stderr)
 
-	app.register_model('text-moderations-005', 'text-moderations-openedai')
+	import repos.moderation_by_embeddings.moderation as mod
+	# Load model
+	moderation = mod.ModerationModel()
+	moderation.load_state_dict(torch.load('repos/moderation_by_embeddings/moderation_model.pth', map_location=torch.device(device)))
 
-	uvicorn.run(app, host=host, port=port)
+	app.register_model('text-moderations-latest', 'text-moderations-stable')
+	app.register_model('text-moderations-005', 'text-moderations-ifmain')
+
+	if not args.test_load:
+		uvicorn.run(app, host=args.host, port=args.port)

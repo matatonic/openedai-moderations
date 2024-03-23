@@ -3,18 +3,18 @@ services:
     build:
       dockerfile: Dockerfile
     image: ghcr.io/matatonic/openedai-moderations
-    env_file:
-      - moderations.env
-    environment:
-      - OPENAI_BASE_URL=http://text-embeddings-inference:80/v1
-    stdin_open: true
-    tty: true
     ports:
       - 5002:5002
-    command: python moderations.py
-
-  # Comment this to use another embeddings API
-  text-embeddings-inference:
-    extends:
-      file: docker-compose.tei.yml
-      service: text-embeddings-inference
+    command: ["python", "moderations.py", "--host", "0.0.0.0", "--port", "5002"]
+    # You can remove the following lines if you don't need GPU support
+    # Note: You need to have nvidia-docker installed and the host machine needs to have a GPU.
+    # Also, you need to have nvidia-container-toolkit installed on the host machine.
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              #device_ids: ['0', '1'] # Select a gpu, or
+              count: all
+              capabilities: [gpu]

@@ -1,4 +1,4 @@
-embedding_data/
+repos/
 .env
 test_moderations.py
 
